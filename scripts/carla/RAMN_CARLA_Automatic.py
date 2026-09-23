@@ -109,6 +109,7 @@ class World(object):
         self.collision_sensor = None
         self.lane_invasion_sensor = None
         self.gnss_sensor = None
+        self.imu_sensor = None
         self.camera_manager = None
         self._weather_presets = find_weather_presets()
         self._weather_index = 0
@@ -156,6 +157,7 @@ class World(object):
         self.collision_sensor = CollisionSensor(self.player, self.hud)
         self.lane_invasion_sensor = LaneInvasionSensor(self.player, self.hud)
         self.gnss_sensor = GnssSensor(self.player)
+        self.imu_sensor = IMUSensor(self.player)
         self.camera_manager = CameraManager(self.player, self.hud, self._gamma)
         self.camera_manager.transform_index = cam_pos_id
         self.camera_manager.set_sensor(cam_index, notify=False)
@@ -192,6 +194,7 @@ class World(object):
             self.collision_sensor.sensor,
             self.lane_invasion_sensor.sensor,
             self.gnss_sensor.sensor,
+            self.imu_sensor.sensor,
             self.player]
         for actor in actors:
             if actor is not None:
@@ -545,6 +548,37 @@ class GnssSensor(object):
         self.lon = event.longitude
 
 # ==============================================================================
+# -- IMUSensor -----------------------------------------------------------------
+# ==============================================================================
+
+
+class IMUSensor(object):
+
+    def __init__(self, parent_actor):
+        self.sensor = None
+        self._parent = parent_actor
+        self.raw_accelerometer = (0.0, 0.0, 0.0)  # unclamped, m/s^2
+        self.frame = None
+        world = self._parent.get_world()
+        blueprint = world.get_blueprint_library().find('sensor.other.imu')
+        self.sensor = world.spawn_actor(blueprint, carla.Transform(), attach_to=self._parent)
+        # We need to pass the lambda a weak reference to
+        # self to avoid circular reference.
+        weak_self = weakref.ref(self)
+        self.sensor.listen(lambda sensor_data: IMUSensor._IMU_callback(weak_self, sensor_data))
+
+    @staticmethod
+    def _IMU_callback(weak_self, sensor_data):
+        self = weak_self()
+        if not self:
+            return
+        self.raw_accelerometer = (
+            sensor_data.accelerometer.x,
+            sensor_data.accelerometer.y,
+            sensor_data.accelerometer.z)
+        self.frame = sensor_data.frame
+
+# ==============================================================================
 # -- CameraManager -------------------------------------------------------------
 # ==============================================================================
 
@@ -748,7 +782,8 @@ def game_loop(args):
                 ramn.update()
                 vel = world.player.get_velocity()
                 ramn.update_output(control.brake,control.throttle,control.hand_brake,control.steer,control.gear,control.reverse,math.sqrt(vel.x**2 + vel.y**2 + vel.z**2),ramn.inputs.horn_command)
-               
+                ramn.send_acceleration(world.imu_sensor.frame, *world.imu_sensor.raw_accelerometer)
+
                 control.brake = ramn.inputs.brake_control
                 control.throttle = ramn.inputs.accel_control
                 control.steer  = ramn.inputs.steering_control
@@ -833,7 +868,8 @@ def game_loop(args):
                 ramn.update()
                 vel = world.player.get_velocity()
                 ramn.update_output(control.brake,control.throttle,control.hand_brake,control.steer,control.gear,control.reverse,math.sqrt(vel.x**2 + vel.y**2 + vel.z**2),ramn.inputs.horn_command)
-               
+                ramn.send_acceleration(world.imu_sensor.frame, *world.imu_sensor.raw_accelerometer)
+
                 control.brake = ramn.inputs.brake_control
                 control.throttle = ramn.inputs.accel_control
                 control.steer  = ramn.inputs.steering_control

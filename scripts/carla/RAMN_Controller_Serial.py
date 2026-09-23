@@ -67,6 +67,10 @@ class RAMN_Controller_Serial(object):
             self.ser.write(('u{:03x}{:03x}{:03x}{:03x}{:02x}{:02x}{:02x}\r'.format(brake_command, accel_command, rpm_state, steering_command, shift_command, horn_state , sidebrake_command)).encode())
             self.lastSent = time.perf_counter()
 
+    def send_acceleration(self,frame,ax,ay,az):
+        #Acceleration is only forwarded over CAN (see RAMN_Controller_CAN)
+        pass
+
     def close(self):
     
         #Use UDS Routine Control 0207 to disable auto pilot features

@@ -65,6 +65,11 @@ BO_ 467 ParkingBrake: 8 Vector__XXX
  SG_ Counter : 23|16@0+ (1,0) [0|65535] "" Vector__XXX
  SG_ Status : 0|1@0- (1,0) [0|1] "" Vector__XXX
 
+BO_ 928 Acceleration: 8 Vector__XXX
+ SG_ AccelX : 7|16@0- (0.01,0) [-327.68|327.67] "g" Vector__XXX
+ SG_ AccelY : 23|16@0- (0.01,0) [-327.68|327.67] "g" Vector__XXX
+ SG_ AccelZ : 39|16@0- (0.01,0) [-327.68|327.67] "g" Vector__XXX
+ SG_ FrameCounter : 55|16@0+ (1,0) [0|65535] "" Vector__XXX
 
 
 

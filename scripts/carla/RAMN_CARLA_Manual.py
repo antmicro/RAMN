@@ -479,6 +479,8 @@ class KeyboardControl(object):
                     elif event.key == K_x:
                         current_lights ^= carla.VehicleLightState.RightBlinker
 
+        self.ramn.send_acceleration(world.imu_sensor.frame, *world.imu_sensor.raw_accelerometer)
+
         if not self._autopilot_enabled:
             if isinstance(self._control, carla.VehicleControl):
                 self._parse_vehicle_keys(pygame.key.get_pressed(), clock.get_time())
@@ -922,6 +924,8 @@ class IMUSensor(object):
         self.sensor = None
         self._parent = parent_actor
         self.accelerometer = (0.0, 0.0, 0.0)
+        self.raw_accelerometer = (0.0, 0.0, 0.0)  # unclamped, m/s^2
+        self.frame = None
         self.gyroscope = (0.0, 0.0, 0.0)
         self.compass = 0.0
         world = self._parent.get_world()
@@ -940,6 +944,11 @@ class IMUSensor(object):
         if not self:
             return
         limits = (-99.9, 99.9)
+        self.raw_accelerometer = (
+            sensor_data.accelerometer.x,
+            sensor_data.accelerometer.y,
+            sensor_data.accelerometer.z)
+        self.frame = sensor_data.frame
         self.accelerometer = (
             max(limits[0], min(limits[1], sensor_data.accelerometer.x)),
             max(limits[0], min(limits[1], sensor_data.accelerometer.y)),

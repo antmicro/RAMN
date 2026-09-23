@@ -8,8 +8,12 @@
 from RAMN_Controller_Utils import *
 import can
 import random
+import struct
 
 USE_BIG_ENDIAN = True
+
+ACCELERATION_CANID = 0x3A0
+GRAVITY = 9.81
 
 class RAMN_Controller_CAN(object):
 
@@ -17,7 +21,8 @@ class RAMN_Controller_CAN(object):
         self.bus = can.interface.Bus(RAMN_Utils.CAN_NAME, bustype=RAMN_Utils.CAN_TYPE)
         self.inputs = RAMN_Inputs()
         self.lastSent = 0
-        
+        self.lastAccelerationFrame = None
+
     def enable_autopilot(self):
         #Use UDS Routine Control 0207 to enable auto pilot features
         msg = can.Message(arbitration_id=0x7e1, data=[0x04, 0x31, 0x01, 0x02, 0x07],is_extended_id=False)
@@ -107,6 +112,18 @@ class RAMN_Controller_CAN(object):
             data = [sidebrake_command&0xFF,0,0,0] + [(r  >> i & 0xff) for i in (24,16,8,0)]
             msg = can.Message(arbitration_id=canid, data=data,is_extended_id=False)
             self.bus.send(msg)
+
+    def send_acceleration(self,frame,ax,ay,az):
+        if frame is None or frame == self.lastAccelerationFrame:
+            return
+        self.lastAccelerationFrame = frame
+
+        def to_centi_g(v):
+            return max(-0x8000, min(0x7FFF, round(100 * v / GRAVITY)))
+
+        data = struct.pack('>hhhH', to_centi_g(ax), to_centi_g(-ay), to_centi_g(az), frame & 0xFFFF)
+        msg = can.Message(arbitration_id=ACCELERATION_CANID, data=data,is_extended_id=False)
+        self.bus.send(msg)
 
     def close(self):
     
