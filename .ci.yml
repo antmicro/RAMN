@@ -1,0 +1,27 @@
+.only_mrs_and_main: &only_mrs_and_main
+  only:
+    refs:
+      - merge_requests
+      - main
+
+.common_build: &common_build
+  image: xanderhendriks/stm32cubeide:15.0
+  stage: build
+  <<: *only_mrs_and_main
+
+stages:
+    - build
+
+debug-full:
+  <<: *common_build
+  script:
+    - OUTPUT_FOLDER="$PWD" ./scripts/build/BUILD_Clean_Debug_elf.sh ${EXTRA_DEFINES}
+  artifacts:
+    paths:
+      - "*.elf"
+
+debug-full-watchdog:
+  variables:
+    EXTRA_DEFINES: -DWATCHDOG_ENABLE
+    NAME_SUFFIX: -watchdog
+  extends: debug-full
