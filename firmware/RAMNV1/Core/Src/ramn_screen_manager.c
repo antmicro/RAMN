@@ -23,7 +23,13 @@
 // Current screen
 static RAMNScreen_t *currentScreen = NULL;
 
-// Array of all possible screens
+#if defined(ENABLE_WARNING_SCREEN)
+// Screen that was displayed before the warning took over (restored when it ends).
+static RAMNScreen_t *screenBeforeWarning = NULL;
+#endif
+
+// Array of all possible user-selectable screens. The warning screen is handled separately,
+// as it is not user-selectable and always takes precedence over other screens.
 static RAMNScreen_t* screens[] = {
 		&ScreenSaver,
 		&ScreenCANMonitor,
@@ -86,6 +92,16 @@ void RAMN_SCREENMANAGER_Init(SPI_HandleTypeDef* handler, osThreadId_t* pTask)
 	switchScreen(DEFAULT_SCREEN);
 }
 
+// Returns True while a warning is displayed (always False if the feature is disabled).
+static inline RAMN_Bool_t isWarningActive()
+{
+#if defined(ENABLE_WARNING_SCREEN)
+	return RAMN_SCREENWARNING_IsActive();
+#else
+	return False;
+#endif
+}
+
 void RAMN_SCREENMANAGER_Update(uint32_t tick)
 {
 	JoystickEventType joystickEvent;
@@ -93,17 +109,36 @@ void RAMN_SCREENMANAGER_Update(uint32_t tick)
 
 #ifdef ENABLE_CHIP8
 	// Force to move to CHIP8 screen if a game was requested (e.g., by USB or by UDS).
-	if (RAMN_CHIP8_IsGameActive() && currentScreen != &ScreenChip8)
+	// A warning takes precedence, though.
+	if (RAMN_CHIP8_IsGameActive() && currentScreen != &ScreenChip8 && !isWarningActive())
 	{
 		switchScreen(&ScreenChip8);
 	}
 #endif
 
 	// Force to move to the UDS screen if a UDS draw was requested.
+	// A warning takes precedence.
 #ifdef ENABLE_UDS
-	if ((RAMN_SCREENUDS_RedrawNeeded != 0U) && (currentScreen != &ScreenUDS))
+	if ((RAMN_SCREENUDS_RedrawNeeded != 0U) && (currentScreen != &ScreenUDS) && !isWarningActive())
 	{
 		switchScreen(&ScreenUDS);
+	}
+#endif
+
+#if defined(ENABLE_WARNING_SCREEN)
+	// Force move to the warning screen while a warning is active.
+	if (isWarningActive())
+	{
+		if (currentScreen != &ScreenWarning)
+		{
+			screenBeforeWarning = currentScreen;
+			switchScreen(&ScreenWarning);
+		}
+	}
+	else if (currentScreen == &ScreenWarning)
+	{
+		switchScreen(screenBeforeWarning ? screenBeforeWarning : DEFAULT_SCREEN);
+		screenBeforeWarning = NULL;
 	}
 #endif
 
@@ -150,6 +185,11 @@ void RAMN_SCREENMANAGER_Update(uint32_t tick)
 
 void RAMN_SCREENMANAGER_ProcessRxCANMessage(const FDCAN_RxHeaderTypeDef* pHeader, const uint8_t* data, uint32_t tick)
 {
+#if defined(ENABLE_WARNING_SCREEN)
+	// Let the warning screen process the message no matter what screen
+	// is currently active, so it can take over the display if needed.
+	RAMN_SCREENWARNING_ProcessRxCANMessage(pHeader, data, tick);
+#endif
 	if (currentScreen != NULL) {
 		if (currentScreen->ProcessRxCANMessage != NULL) currentScreen->ProcessRxCANMessage(pHeader, data, tick);
 	}

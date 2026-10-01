@@ -74,6 +74,10 @@
 // Enable screen (not restricted to ECU A).
 #define ENABLE_SCREEN
 
+// Enable the warning screen. It is displayed (taking over the current screen) as long
+// as a warning is active, see DID_WARNING in ramn_vehicle_specific.h.
+#define ENABLE_WARNING_SCREEN
+
 // Enable Chip 8 engine.
 #define ENABLE_CHIP8
 

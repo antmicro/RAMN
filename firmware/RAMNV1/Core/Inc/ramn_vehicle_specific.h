@@ -173,6 +173,10 @@
 #define DID_CONTROL_ENGINEKEY      0x1B8
 #define DID_CONTROL_LIGHTS         0x1BB
 
+// Warning message, displayed on ECUA's screen (see ramn_screen_warning.c).
+// Payload: byte 0 is the warning state (0x00 = no warning, any other value = warning).
+#define DID_WARNING                0x400
+
 // This section defines which CAN ID an ECU is configured to receive.
 // May be used to setup CAN filters.
 #if defined(TARGET_ECUA)

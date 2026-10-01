@@ -71,5 +71,5 @@ BO_ 928 Acceleration: 8 Vector__XXX
  SG_ AccelZ : 39|16@0- (0.01,0) [-327.68|327.67] "g" Vector__XXX
  SG_ FrameCounter : 55|16@0+ (1,0) [0|65535] "" Vector__XXX
 
-
-
+BO_ 1024 CollisionWarning: 8 Vector__XXX
+ SG_ Active : 7|8@0+ (1,0) [0|255] "" Vector__XXX
