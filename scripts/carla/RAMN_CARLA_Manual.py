@@ -94,6 +94,8 @@ import weakref
 
 from RAMN_Controller_Serial import RAMN_Controller_Serial
 from RAMN_Controller_CAN    import RAMN_Controller_CAN
+from RAMN_CARLA_Sync        import RENODE_BOOT_SECONDS, TICKS_PER_SECOND, FrameNotifier, enable_synchronous_mode, restore_settings, tick_world
+from RenodeMonitor          import RenodeMonitor
 
 try:
     import pygame
@@ -926,6 +928,7 @@ class IMUSensor(object):
         self.accelerometer = (0.0, 0.0, 0.0)
         self.raw_accelerometer = (0.0, 0.0, 0.0)  # unclamped, m/s^2
         self.frame = None
+        self._frame_notifier = FrameNotifier()
         self.gyroscope = (0.0, 0.0, 0.0)
         self.compass = 0.0
         world = self._parent.get_world()
@@ -958,6 +961,10 @@ class IMUSensor(object):
             max(limits[0], min(limits[1], math.degrees(sensor_data.gyroscope.y))),
             max(limits[0], min(limits[1], math.degrees(sensor_data.gyroscope.z))))
         self.compass = math.degrees(sensor_data.compass)
+        self._frame_notifier.notify(sensor_data.frame)
+
+    def wait_for_frame(self, frame):
+        return self._frame_notifier.wait_for(frame)
 
 
 # ==============================================================================
@@ -1164,6 +1171,9 @@ def game_loop(args):
     pygame.init()
     pygame.font.init()
     world = None
+    original_settings = None
+    renode = None
+    ramn = None
 
     try:
         client = carla.Client(args.host, args.port)
@@ -1177,6 +1187,14 @@ def game_loop(args):
 
         hud = HUD(args.width, args.height)
         world = World(client.get_world(), hud, args)
+
+        original_settings = enable_synchronous_mode(world.world)
+
+        if args.renode_port is not None:
+            renode = RenodeMonitor(args.renode_port)
+            # Frames received before the ECUs initialize their CAN controllers are lost, e.g. the autopilot request
+            renode.run_for(RENODE_BOOT_SECONDS)
+
         if args.use_can:
             ramn = RAMN_Controller_CAN()
             controller = KeyboardControl(world, args.autopilot, ramn)
@@ -1186,14 +1204,17 @@ def game_loop(args):
             
         clock = pygame.time.Clock()
         while True:
-            clock.tick_busy_loop(60)
+            clock.tick_busy_loop(TICKS_PER_SECOND)
             if controller.parse_events(client, world, clock):
                 return
+            tick_world(world.world, world.imu_sensor, renode)
             world.tick(clock)
             world.render(display)
             pygame.display.flip()
 
     finally:
+        if world is not None:
+            restore_settings(world.world, original_settings)
 
         if (world and world.recording_enabled):
             client.stop_recorder()
@@ -1201,7 +1222,9 @@ def game_loop(args):
         if world is not None:
             world.destroy()
 
-        ramn.close()
+        if ramn is not None:
+            ramn.close()
+
         pygame.quit()
 
 
@@ -1258,7 +1281,12 @@ def main():
         action='store_true',
         dest='use_can',
         help='Use specified CAN interface instead of serial')
-    
+    argparser.add_argument(
+        '--renode-port',
+        default=None,
+        type=int,
+        help='Port of the Renode server used to advances Renode in lockstep with CARLA (default: None)')
+
     args = argparser.parse_args()
 
     args.width, args.height = [int(x) for x in args.res.split('x')]

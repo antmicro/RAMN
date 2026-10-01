@@ -25,6 +25,8 @@ import weakref
 
 from RAMN_Controller_Serial import RAMN_Controller_Serial
 from RAMN_Controller_CAN    import RAMN_Controller_CAN
+from RAMN_CARLA_Sync        import RENODE_BOOT_SECONDS, TICKS_PER_SECOND, FrameNotifier, enable_synchronous_mode, restore_settings, tick_world
+from RenodeMonitor          import RenodeMonitor
 
 
 try:
@@ -559,6 +561,7 @@ class IMUSensor(object):
         self._parent = parent_actor
         self.raw_accelerometer = (0.0, 0.0, 0.0)  # unclamped, m/s^2
         self.frame = None
+        self._frame_notifier = FrameNotifier()
         world = self._parent.get_world()
         blueprint = world.get_blueprint_library().find('sensor.other.imu')
         self.sensor = world.spawn_actor(blueprint, carla.Transform(), attach_to=self._parent)
@@ -577,6 +580,10 @@ class IMUSensor(object):
             sensor_data.accelerometer.y,
             sensor_data.accelerometer.z)
         self.frame = sensor_data.frame
+        self._frame_notifier.notify(sensor_data.frame)
+
+    def wait_for_frame(self, frame):
+        return self._frame_notifier.wait_for(frame)
 
 # ==============================================================================
 # -- CameraManager -------------------------------------------------------------
@@ -711,6 +718,9 @@ def game_loop(args):
     pygame.init()
     pygame.font.init()
     world = None
+    original_settings = None
+    renode = None
+    ramn = None
     tot_target_reached = 0
     num_min_waypoints = 21
 
@@ -724,6 +734,14 @@ def game_loop(args):
 
         hud = HUD(args.width, args.height)
         world = World(client.get_world(), hud, args)
+
+        original_settings = enable_synchronous_mode(world.world)
+
+        if args.renode_port is not None:
+            renode = RenodeMonitor(args.renode_port)
+            # Frames received before the ECUs initialize their CAN controllers are lost, e.g. the autopilot request
+            renode.run_for(RENODE_BOOT_SECONDS)
+
         controller = KeyboardControl(world)
         if args.use_can:
             ramn = RAMN_Controller_CAN()
@@ -757,21 +775,13 @@ def game_loop(args):
         clock = pygame.time.Clock()
 
         while True:
-            clock.tick_busy_loop(60)
+            clock.tick_busy_loop(TICKS_PER_SECOND)
             if controller.parse_events():
                 return
 
-            # As soon as the server is ready continue!
-            if not world.world.wait_for_tick(10.0):
-                continue
+            tick_world(world.world, world.imu_sensor, renode)
 
             if args.agent == "Roaming" or args.agent == "Basic":
-                if controller.parse_events():
-                    return
-
-                # as soon as the server is ready continue!
-                world.world.wait_for_tick(10.0)
-
                 world.tick(clock)
                 world.render(display)
                 pygame.display.flip()
@@ -930,9 +940,12 @@ def game_loop(args):
 
     finally:
         if world is not None:
+            restore_settings(world.world, original_settings)
             world.destroy()
 
-        ramn.close()
+        if ramn is not None:
+            ramn.close()
+
         pygame.quit()
 
 # ==============================================================================
@@ -1000,6 +1013,11 @@ def main():
         action='store_true',
         dest='use_can',
         help='Use specified CAN interface instead of serial')
+    argparser.add_argument(
+        '--renode-port',
+        default=None,
+        type=int,
+        help='Port of the Renode server used to advance Renode in lockstep with CARLA (default: None)')
 
     args = argparser.parse_args()
 
