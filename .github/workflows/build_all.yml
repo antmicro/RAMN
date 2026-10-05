@@ -132,6 +132,13 @@ jobs:
           name: firmware-default-${{ matrix.conf }}-${{ matrix.cubeide_docker_tag }}
           path: scripts/firmware/*.hex
 
+      - name: Upload ELF
+        if: ${{ matrix.conf}} == 'Release' && ${{ matrix.cubeide_docker_tag }} == '2.1.1'
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-elf-${{ matrix.conf }}-${{ matrix.cubeide_docker_tag }}
+          path: scripts/firmware/*.elf
+
   macro_coverage:
     name: ${{ matrix.variant }}
     needs: [prepare, warm_cache]

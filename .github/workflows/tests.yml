@@ -1,0 +1,39 @@
+name: Tests
+
+on:
+  workflow_run:
+    workflows: ["Build"]
+    types: [completed]
+
+jobs:
+  run_tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: Download Renode
+        uses: antmicro/renode-test-action/action.yml@v5
+
+      - name: Verify if Renode is persistent
+        run: renode --version | grep "Renode v" || exit 1
+        shell: bash
+
+      - name: Download ELF artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: firmware-elf-Release*
+          path: ELF/
+
+      - name: Run robot test suite on Renode
+        uses: antmicro/renode-test-action/action.yml@v5
+        with:
+          tests-to-run: firmware/RAMNV1/Tests/RAMN.robot
+          renode-argument: --variable ECUA_ELF=ELF/ECUA.elf --variable ECUB_ELF=ELF/ECUB.elf --variable ECUC_ELF=ELF/ECUC.elf --variable ECUD_ELF=ELF/ECUD.elf
+          artifacts-paths: tests-results/
+
+      - name: Upload tests results
+        uses: actions/upload-artifact@v4
+        with:
+          path: tests-results/*
+          name: tests-results
