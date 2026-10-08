@@ -87,12 +87,12 @@ RAMN Suite Setup
             Log     Using default ${ECU} from Renode script.     level=WARN
         END
     END
-    Renode Suite Setup
+    Setup
 
 RAMN Test Setup
     [Documentation]     Prepare Renode with RAMN firmwares.
 
-    Renode Test Setup
+    Test Setup
 
     # Using ramn.resc from Renode, that uses bin_ECU{A,B,C,D} variables to load ELF files.
     FOR     ${ECU}  IN  ECUA    ECUB    ECUC    ECUD
