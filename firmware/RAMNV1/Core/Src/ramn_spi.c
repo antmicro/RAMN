@@ -50,43 +50,17 @@ void HAL_SPI_TxCpltCallback (SPI_HandleTypeDef * hspi)
 
 static HAL_StatusTypeDef SPI_WriteData_DMA(const uint8_t *data, uint16_t nbytes)
 {
-	HAL_StatusTypeDef result;
-
-	HAL_GPIO_WritePin(LCD_DC_GPIO_Port, LCD_DC_Pin , GPIO_PIN_SET);  // 1 for data, 0 for control
-	HAL_GPIO_WritePin(LCD_nCS_GPIO_Port, LCD_nCS_Pin, GPIO_PIN_RESET);
-	result = HAL_SPI_Transmit_DMA(hspi, (uint8_t*)data, nbytes);
-	if (result == HAL_OK) ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-	HAL_GPIO_WritePin(LCD_nCS_GPIO_Port, LCD_nCS_Pin, GPIO_PIN_SET);
-	return result;
+	return HAL_OK;
 }
 
 static HAL_StatusTypeDef SPI_WriteCommand_DMA(uint8_t cmd)
 {
-	HAL_StatusTypeDef result;
-
-	HAL_GPIO_WritePin(LCD_DC_GPIO_Port, LCD_DC_Pin, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(LCD_nCS_GPIO_Port, LCD_nCS_Pin, GPIO_PIN_RESET);
-	result = HAL_SPI_Transmit_DMA(hspi, &cmd, 1);
-	if (result == HAL_OK) ulTaskNotifyTake( pdTRUE, portMAX_DELAY);
-	HAL_GPIO_WritePin(LCD_nCS_GPIO_Port, LCD_nCS_Pin, GPIO_PIN_SET);
-	return result;
+	return HAL_OK;
 }
 
 static HAL_StatusTypeDef SPI_WriteDataUint32_DMA(uint32_t data)
 {
-	HAL_StatusTypeDef result;
-	uint8_t buf[4];
-
-	buf[0] = (data>>24)&0xFF;
-	buf[1] = (data>>16)&0xFF;
-	buf[2] = (data>>8)&0xFF;
-	buf[3] = (data)&0xFF;
-	HAL_GPIO_WritePin(LCD_DC_GPIO_Port, LCD_DC_Pin, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(LCD_nCS_GPIO_Port, LCD_nCS_Pin, GPIO_PIN_RESET);
-	result = HAL_SPI_Transmit_DMA(hspi, buf, 4);
-	if (result == HAL_OK) ulTaskNotifyTake( pdTRUE, portMAX_DELAY);
-	HAL_GPIO_WritePin(LCD_nCS_GPIO_Port, LCD_nCS_Pin, GPIO_PIN_SET);
-	return result;
+	return HAL_OK;
 }
 
 static void SPI_SetAddrWindow(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
@@ -344,12 +318,7 @@ void RAMN_SPI_RefreshUint32(uint16_t x, uint16_t y, uint16_t fgColor, uint16_t b
 // You may consider setting LCD_nCS_Pin permanently high and skip the TaskNotifyTake to avoid waiting.
 void RAMN_SPI_UpdateLED(uint8_t* pval)
 {
-	HAL_StatusTypeDef result;
-
-	HAL_GPIO_WritePin(LCD_nCS_GPIO_Port, LCD_nCS_Pin, GPIO_PIN_RESET);
-	result = HAL_SPI_Transmit_IT(hspi, pval, 1);
-	if (result == HAL_OK) ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-	HAL_GPIO_WritePin(LCD_nCS_GPIO_Port, LCD_nCS_Pin, GPIO_PIN_SET);
+	return;
 }
 
 #endif
