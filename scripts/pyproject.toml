@@ -1,0 +1,15 @@
+[project]
+name = "carla-scripts"
+version = "0.1.0"
+requires-python = "==3.12.*"
+dependencies = [
+    "click",
+    "intelhex",
+    "pyserial",
+    "python-can",
+    "carla==0.9.16",
+    "numpy<2",
+    "pygame",
+    "shapely",
+    "networkx"
+]
