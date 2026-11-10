@@ -6,6 +6,7 @@ on:
     types: [completed]
     branches:
       - 'main'
+      - 'ci-fix-elfs-paths'
 
 jobs:
   run_full_test_suite:
